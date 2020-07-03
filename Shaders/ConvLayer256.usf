@@ -1,0 +1,41 @@
+#include "/Engine/Private/Common.ush"
+#include "ConvLayer.ush"
+
+StructuredBuffer<float> InputBuffer;
+StructuredBuffer<float> WeightBuffer;
+RWStructuredBuffer<float> OutputBuffer;
+
+#define FilterSize 256
+
+groupshared float Cache[FilterSize * 4];
+
+[numthreads(FilterSize, 1, 4)]
+void ConvLayer256(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupThreadID)
+{
+	const uint3 InputDim = uint3(ConvLayer256Uniform.InputDimX, ConvLayer256Uniform.InputDimY, ConvLayer256Uniform.InputDimZ);
+
+	const uint3 OutputDim = uint3(ConvLayer256Uniform.OutputDimX, ConvLayer256Uniform.OutputDimY, ConvLayer256Uniform.OutputDimZ);
+	const uint3 InputDimIndexMult = uint3(
+		ConvLayer256Uniform.InputDimIndexMultX,
+		ConvLayer256Uniform.InputDimIndexMultY,
+		ConvLayer256Uniform.InputDimIndexMultZ);
+	const uint3 OutputDimIndexMult = uint3(
+		ConvLayer256Uniform.OutputDimIndexMultX,
+		ConvLayer256Uniform.OutputDimIndexMultY,
+		ConvLayer256Uniform.OutputDimIndexMultZ);
+	const uint4 WeightDim = uint4(
+		ConvLayer256Uniform.WeightDimX,
+		ConvLayer256Uniform.WeightDimY,
+		ConvLayer256Uniform.WeightDimZ,
+		ConvLayer256Uniform.WeightDimW);
+	const uint4 WeightDimIndexMult = uint4(
+		ConvLayer256Uniform.WeightDimIndexMultX,
+		ConvLayer256Uniform.WeightDimIndexMultY,
+		ConvLayer256Uniform.WeightDimIndexMultZ,
+		ConvLayer256Uniform.WeightDimIndexMultW);
+	const uint2 Stride = uint2(ConvLayer256Uniform.StrideX, ConvLayer256Uniform.StrideY);
+	
+	SHADER_IMPLEMENTATION(FilterSize)
+}
+
+#undef FilterSize

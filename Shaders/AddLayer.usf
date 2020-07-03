@@ -1,0 +1,29 @@
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float> InputBuffer1;
+StructuredBuffer<float> InputBuffer2;
+RWStructuredBuffer<float> OutputBuffer;
+
+[numthreads(32, 32, 1)]
+void AddLayer(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const uint3 InputDim = uint3(AddLayerUniform.InputDimX, AddLayerUniform.InputDimY, AddLayerUniform.InputDimZ);
+	const uint3 OutputDim = uint3(AddLayerUniform.OutputDimX, AddLayerUniform.OutputDimY, AddLayerUniform.OutputDimZ);
+	const uint3 InputDimIndexMult = uint3(
+		AddLayerUniform.InputDimIndexMultX,
+		AddLayerUniform.InputDimIndexMultY,
+		AddLayerUniform.InputDimIndexMultZ);
+	const uint3 OutputDimIndexMult = uint3(
+		AddLayerUniform.OutputDimIndexMultX,
+		AddLayerUniform.OutputDimIndexMultY,
+		AddLayerUniform.OutputDimIndexMultZ);
+	
+	uint InputIdx = dot(ThreadId, InputDimIndexMult);
+	uint OutputIdx = dot(ThreadId, OutputDimIndexMult);
+	
+	if (InputIdx < InputDim.x * InputDim.y * InputDim.z 
+		&& OutputIdx < OutputDim.x * OutputDim.y * OutputDim.z)
+	{	
+		OutputBuffer[OutputIdx] = InputBuffer1[InputIdx] + InputBuffer2[InputIdx];
+	}
+}

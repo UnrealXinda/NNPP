@@ -1,0 +1,23 @@
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float> InputBuffer;
+RWStructuredBuffer<float> OutputBuffer;
+
+[numthreads(32, 1, 1)]
+void ReLULayer(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const uint3 InputDim = uint3(ReLULayerUniform.InputDimX, ReLULayerUniform.InputDimY, ReLULayerUniform.InputDimZ);
+	const uint3 OutputDim = uint3(ReLULayerUniform.OutputDimX, ReLULayerUniform.OutputDimY, ReLULayerUniform.OutputDimZ);
+	const uint3 InputDimIndexMult = uint3(
+		ReLULayerUniform.InputDimIndexMultX,
+		ReLULayerUniform.InputDimIndexMultY,
+		ReLULayerUniform.InputDimIndexMultZ);
+	
+	uint Idx = dot(ThreadId, InputDimIndexMult);
+	
+	if (Idx < InputDim.x * InputDim.y * InputDim.z 
+		&& Idx < OutputDim.x * OutputDim.y * OutputDim.z)
+	{
+		OutputBuffer[Idx] = max(InputBuffer[Idx], 0.0);
+	}
+}

@@ -1,0 +1,26 @@
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float> InputBuffer;
+StructuredBuffer<float> WeightBuffer;
+RWStructuredBuffer<float> OutputBuffer;
+
+[numthreads(32, 32, 1)]
+void BatchNormLayer(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const uint3 InputDim = uint3(BatchNormLayerUniform.InputDimX, BatchNormLayerUniform.InputDimY, BatchNormLayerUniform.InputDimZ);
+	const uint3 OutputDim = uint3(BatchNormLayerUniform.OutputDimX, BatchNormLayerUniform.OutputDimY, BatchNormLayerUniform.OutputDimZ);
+	const float Epsilon = 1e-3;
+	
+	float Gamma    = WeightBuffer[ThreadId.y * 4];
+	float Beta     = WeightBuffer[ThreadId.y * 4 + 1];
+	float Mean     = WeightBuffer[ThreadId.y * 4 + 2];
+	float Variance = WeightBuffer[ThreadId.y * 4 + 3];
+	
+	uint Idx = ThreadId.x * InputDim.z + ThreadId.y;
+	
+	if (Idx < InputDim.x * InputDim.y * InputDim.z 
+		&& Idx < OutputDim.x * OutputDim.y * OutputDim.z)
+	{
+		OutputBuffer[Idx] = (InputBuffer[Idx] - Mean) * Gamma * rcp(sqrt(Variance + Epsilon)) + Beta;
+	}
+}

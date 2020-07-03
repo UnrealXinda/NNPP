@@ -1,0 +1,41 @@
+#include "/Engine/Private/Common.ush"
+#include "ConvLayer.ush"
+
+StructuredBuffer<float> InputBuffer;
+StructuredBuffer<float> WeightBuffer;
+RWStructuredBuffer<float> OutputBuffer;
+
+#define FilterSize 12
+
+groupshared float Cache[FilterSize * 4];
+
+[numthreads(FilterSize, 1, 4)]
+void ConvLayer12(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupThreadID)
+{
+	const uint3 InputDim = uint3(ConvLayer12Uniform.InputDimX, ConvLayer12Uniform.InputDimY, ConvLayer12Uniform.InputDimZ);
+
+	const uint3 OutputDim = uint3(ConvLayer12Uniform.OutputDimX, ConvLayer12Uniform.OutputDimY, ConvLayer12Uniform.OutputDimZ);
+	const uint3 InputDimIndexMult = uint3(
+		ConvLayer12Uniform.InputDimIndexMultX,
+		ConvLayer12Uniform.InputDimIndexMultY,
+		ConvLayer12Uniform.InputDimIndexMultZ);
+	const uint3 OutputDimIndexMult = uint3(
+		ConvLayer12Uniform.OutputDimIndexMultX,
+		ConvLayer12Uniform.OutputDimIndexMultY,
+		ConvLayer12Uniform.OutputDimIndexMultZ);
+	const uint4 WeightDim = uint4(
+		ConvLayer12Uniform.WeightDimX,
+		ConvLayer12Uniform.WeightDimY,
+		ConvLayer12Uniform.WeightDimZ,
+		ConvLayer12Uniform.WeightDimW);
+	const uint4 WeightDimIndexMult = uint4(
+		ConvLayer12Uniform.WeightDimIndexMultX,
+		ConvLayer12Uniform.WeightDimIndexMultY,
+		ConvLayer12Uniform.WeightDimIndexMultZ,
+		ConvLayer12Uniform.WeightDimIndexMultW);
+	const uint2 Stride = uint2(ConvLayer12Uniform.StrideX, ConvLayer12Uniform.StrideY);
+	
+	SHADER_IMPLEMENTATION(FilterSize)
+}
+
+#undef FilterSize

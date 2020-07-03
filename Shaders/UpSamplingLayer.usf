@@ -1,0 +1,36 @@
+#include "/Engine/Private/Common.ush"
+
+StructuredBuffer<float> InputBuffer;
+RWStructuredBuffer<float> OutputBuffer;
+
+[numthreads(32, 32, 1)]
+void UpSamplingLayer(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const uint3 InputDim = uint3(UpSamplingLayerUniform.InputDimX, UpSamplingLayerUniform.InputDimY, UpSamplingLayerUniform.InputDimZ);
+	const uint3 OutputDim = uint3(UpSamplingLayerUniform.OutputDimX, UpSamplingLayerUniform.OutputDimY, UpSamplingLayerUniform.OutputDimZ);
+	const uint3 InputDimIndexMult = uint3(
+		UpSamplingLayerUniform.InputDimIndexMultX,
+		UpSamplingLayerUniform.InputDimIndexMultY,
+		UpSamplingLayerUniform.InputDimIndexMultZ);
+	const uint3 OutputDimIndexMult = uint3(
+		UpSamplingLayerUniform.OutputDimIndexMultX,
+		UpSamplingLayerUniform.OutputDimIndexMultY,
+		UpSamplingLayerUniform.OutputDimIndexMultZ);
+	const uint2 Size = uint2(UpSamplingLayerUniform.SizeX, UpSamplingLayerUniform.SizeY);
+	
+	uint OutputIdx = dot(ThreadId, OutputDimIndexMult);
+	
+	if (OutputIdx < OutputDim.x * OutputDim.y * OutputDim.z)
+	{
+		float2 InputIdx = (float2) ThreadId.xy / (float2) Size.xy;
+		uint3 InputIdxFloor = uint3(floor(InputIdx), ThreadId.z);
+		float2 InputIdxFrac = InputIdx - InputIdxFloor.xy;
+		
+		// Bilinear lerp
+		OutputBuffer[OutputIdx] =
+			InputBuffer[dot(InputIdxFloor, InputDimIndexMult)] * (1 - InputIdxFrac.x) * (1 - InputIdxFrac.y) +
+			InputBuffer[dot(InputIdxFloor + uint3(1, 0, 0), InputDimIndexMult)] * (InputIdxFrac.x) * (1 - InputIdxFrac.y) +
+			InputBuffer[dot(InputIdxFloor + uint3(0, 1, 0), InputDimIndexMult)] * (1 - InputIdxFrac.x) * (InputIdxFrac.y) +
+			InputBuffer[dot(InputIdxFloor + uint3(1, 1, 0), InputDimIndexMult)] * (InputIdxFrac.x) * (InputIdxFrac.y);
+	}
+}
