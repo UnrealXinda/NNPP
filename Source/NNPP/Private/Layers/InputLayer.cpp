@@ -4,12 +4,8 @@
 #include "Layers/NNLayerUtils.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInputLayerComputeShaderParameters, )
-	SHADER_PARAMETER(int32, InputDimX)
-	SHADER_PARAMETER(int32, InputDimY)
-	SHADER_PARAMETER(int32, InputDimZ)
-	SHADER_PARAMETER(int32, InputDimIndexMultX)
-	SHADER_PARAMETER(int32, InputDimIndexMultY)
-	SHADER_PARAMETER(int32, InputDimIndexMultZ)
+	SHADER_PARAMETER(FIntVector, InputDim)
+	SHADER_PARAMETER(FIntVector, InputDimIndexMult)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInputLayerComputeShaderParameters, "InputLayerUniform");
 
@@ -91,12 +87,8 @@ void FInputLayer::RunLayer_RenderThread(
 
 	// Bind shader uniform
 	FInputLayerComputeShader::FParameters UniformParam;
-	UniformParam.InputDimX          = InputDim.X;
-	UniformParam.InputDimY          = InputDim.Y;
-	UniformParam.InputDimZ          = InputDim.Z;
-	UniformParam.InputDimIndexMultX = InputDim.Y * InputDim.Z;
-	UniformParam.InputDimIndexMultY = InputDim.Z;
-	UniformParam.InputDimIndexMultZ = 1;
+	UniformParam.InputDim          = InputDim;
+	UniformParam.InputDimIndexMult = FIntVector(InputDim.Y * InputDim.Z, InputDim.Z, 1);
 	InputLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader

@@ -6,11 +6,8 @@ RWStructuredBuffer<float> OutputBuffer;
 [numthreads(32, 32, 1)]
 void InputLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint3 InputDim = uint3(InputLayerUniform.InputDimX, InputLayerUniform.InputDimY, InputLayerUniform.InputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		InputLayerUniform.InputDimIndexMultX,
-		InputLayerUniform.InputDimIndexMultY,
-		InputLayerUniform.InputDimIndexMultZ);
+	const uint3 InputDim          = InputLayerUniform.InputDim;
+	const uint3 InputDimIndexMult = InputLayerUniform.InputDimIndexMult;
 	
 	if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
 	{

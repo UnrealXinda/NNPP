@@ -6,11 +6,8 @@ RWTexture2D<float4> OutputTexture;
 [numthreads(32, 32, 1)]
 void OutputLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint3 InputDim = uint3(OutputLayerUniform.InputDimX, OutputLayerUniform.InputDimY, OutputLayerUniform.InputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		OutputLayerUniform.InputDimIndexMultX,
-		OutputLayerUniform.InputDimIndexMultY,
-		OutputLayerUniform.InputDimIndexMultZ);
+	const uint3 InputDim          = OutputLayerUniform.InputDim;
+	const uint3 InputDimIndexMult = OutputLayerUniform.InputDimIndexMult;
 	
 	if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
 	{		

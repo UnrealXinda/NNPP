@@ -12,28 +12,13 @@ groupshared float Cache[FilterSize * 4];
 [numthreads(FilterSize, 1, 4)]
 void ConvLayer20(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupThreadID)
 {
-	const uint3 InputDim = uint3(ConvLayer20Uniform.InputDimX, ConvLayer20Uniform.InputDimY, ConvLayer20Uniform.InputDimZ);
-
-	const uint3 OutputDim = uint3(ConvLayer20Uniform.OutputDimX, ConvLayer20Uniform.OutputDimY, ConvLayer20Uniform.OutputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		ConvLayer20Uniform.InputDimIndexMultX,
-		ConvLayer20Uniform.InputDimIndexMultY,
-		ConvLayer20Uniform.InputDimIndexMultZ);
-	const uint3 OutputDimIndexMult = uint3(
-		ConvLayer20Uniform.OutputDimIndexMultX,
-		ConvLayer20Uniform.OutputDimIndexMultY,
-		ConvLayer20Uniform.OutputDimIndexMultZ);
-	const uint4 WeightDim = uint4(
-		ConvLayer20Uniform.WeightDimX,
-		ConvLayer20Uniform.WeightDimY,
-		ConvLayer20Uniform.WeightDimZ,
-		ConvLayer20Uniform.WeightDimW);
-	const uint4 WeightDimIndexMult = uint4(
-		ConvLayer20Uniform.WeightDimIndexMultX,
-		ConvLayer20Uniform.WeightDimIndexMultY,
-		ConvLayer20Uniform.WeightDimIndexMultZ,
-		ConvLayer20Uniform.WeightDimIndexMultW);
-	const uint2 Stride = uint2(ConvLayer20Uniform.StrideX, ConvLayer20Uniform.StrideY);
+	const uint3 InputDim           = ConvLayer20Uniform.InputDim;
+	const uint3 OutputDim          = ConvLayer20Uniform.OutputDim;
+	const uint3 InputDimIndexMult  = ConvLayer20Uniform.InputDimIndexMult;
+	const uint3 OutputDimIndexMult = ConvLayer20Uniform.OutputDimIndexMult;
+	const uint4 WeightDim          = ConvLayer20Uniform.WeightDim;
+	const uint4 WeightDimIndexMult = ConvLayer20Uniform.WeightDimIndexMult;
+	const uint2 Stride             = ConvLayer20Uniform.Stride;
 	
 	SHADER_IMPLEMENTATION(FilterSize)
 }

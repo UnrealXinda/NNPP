@@ -12,28 +12,13 @@ groupshared float Cache[FilterSize * 4];
 [numthreads(FilterSize, 1, 4)]
 void ConvLayer128(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupThreadID)
 {
-	const uint3 InputDim = uint3(ConvLayer128Uniform.InputDimX, ConvLayer128Uniform.InputDimY, ConvLayer128Uniform.InputDimZ);
-
-	const uint3 OutputDim = uint3(ConvLayer128Uniform.OutputDimX, ConvLayer128Uniform.OutputDimY, ConvLayer128Uniform.OutputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		ConvLayer128Uniform.InputDimIndexMultX,
-		ConvLayer128Uniform.InputDimIndexMultY,
-		ConvLayer128Uniform.InputDimIndexMultZ);
-	const uint3 OutputDimIndexMult = uint3(
-		ConvLayer128Uniform.OutputDimIndexMultX,
-		ConvLayer128Uniform.OutputDimIndexMultY,
-		ConvLayer128Uniform.OutputDimIndexMultZ);
-	const uint4 WeightDim = uint4(
-		ConvLayer128Uniform.WeightDimX,
-		ConvLayer128Uniform.WeightDimY,
-		ConvLayer128Uniform.WeightDimZ,
-		ConvLayer128Uniform.WeightDimW);
-	const uint4 WeightDimIndexMult = uint4(
-		ConvLayer128Uniform.WeightDimIndexMultX,
-		ConvLayer128Uniform.WeightDimIndexMultY,
-		ConvLayer128Uniform.WeightDimIndexMultZ,
-		ConvLayer128Uniform.WeightDimIndexMultW);
-	const uint2 Stride = uint2(ConvLayer128Uniform.StrideX, ConvLayer128Uniform.StrideY);
+	const uint3 InputDim           = ConvLayer128Uniform.InputDim;
+	const uint3 OutputDim          = ConvLayer128Uniform.OutputDim;
+	const uint3 InputDimIndexMult  = ConvLayer128Uniform.InputDimIndexMult;
+	const uint3 OutputDimIndexMult = ConvLayer128Uniform.OutputDimIndexMult;
+	const uint4 WeightDim          = ConvLayer128Uniform.WeightDim;
+	const uint4 WeightDimIndexMult = ConvLayer128Uniform.WeightDimIndexMult;
+	const uint2 Stride             = ConvLayer128Uniform.Stride;
 	
 	SHADER_IMPLEMENTATION(FilterSize)
 }

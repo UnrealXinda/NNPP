@@ -4,20 +4,11 @@
 #include "Layers/NNLayerUtils.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUpSamplingLayerComputeShaderParameters, )
-	SHADER_PARAMETER(int32, InputDimX)
-	SHADER_PARAMETER(int32, InputDimY)
-	SHADER_PARAMETER(int32, InputDimZ)
-	SHADER_PARAMETER(int32, OutputDimX)
-	SHADER_PARAMETER(int32, OutputDimY)
-	SHADER_PARAMETER(int32, OutputDimZ)
-	SHADER_PARAMETER(int32, InputDimIndexMultX)
-	SHADER_PARAMETER(int32, InputDimIndexMultY)
-	SHADER_PARAMETER(int32, InputDimIndexMultZ)
-	SHADER_PARAMETER(int32, OutputDimIndexMultX)
-	SHADER_PARAMETER(int32, OutputDimIndexMultY)
-	SHADER_PARAMETER(int32, OutputDimIndexMultZ)
-	SHADER_PARAMETER(int32, SizeX)
-	SHADER_PARAMETER(int32, SizeY)
+	SHADER_PARAMETER(FIntVector, InputDim)
+	SHADER_PARAMETER(FIntVector, OutputDim)
+	SHADER_PARAMETER(FIntVector, InputDimIndexMult)
+	SHADER_PARAMETER(FIntVector, OutputDimIndexMult)
+	SHADER_PARAMETER(FIntPoint,  Size)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FUpSamplingLayerComputeShaderParameters, "UpSamplingLayerUniform");
 
@@ -99,20 +90,11 @@ check(IsInRenderingThread());
 
 	// Bind shader uniform
 	FUpSamplingLayerComputeShader::FParameters UniformParam;
-	UniformParam.InputDimX           = InputDim.X;
-	UniformParam.InputDimY           = InputDim.Y;
-	UniformParam.InputDimZ           = InputDim.Z;
-	UniformParam.OutputDimX          = OutputDim.X;
-	UniformParam.OutputDimY          = OutputDim.Y;
-	UniformParam.OutputDimZ          = OutputDim.Z;
-	UniformParam.InputDimIndexMultX  = InputDim.Y * InputDim.Z;
-	UniformParam.InputDimIndexMultY  = InputDim.X;
-	UniformParam.InputDimIndexMultZ  = 1;
-	UniformParam.OutputDimIndexMultX = OutputDim.Y * OutputDim.Z;
-	UniformParam.OutputDimIndexMultY = OutputDim.Z;
-	UniformParam.OutputDimIndexMultZ = 1;
-	UniformParam.SizeX               = Size.X;
-	UniformParam.SizeY               = Size.Y;
+	UniformParam.InputDim           = InputDim;
+	UniformParam.OutputDim          = OutputDim;
+	UniformParam.InputDimIndexMult  = FIntVector(InputDim.Y * InputDim.Z, InputDim.X, 1);
+	UniformParam.OutputDimIndexMult = FIntVector(OutputDim.Y * OutputDim.Z, OutputDim.Z, 1);
+	UniformParam.Size               = Size;
 	UpSamplingLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader

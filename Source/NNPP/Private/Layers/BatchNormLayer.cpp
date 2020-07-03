@@ -6,12 +6,8 @@
 #include "Layers/NNLayerUtils.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FBatchNormLayerComputeShaderParameters, )
-	SHADER_PARAMETER(int32, InputDimX)
-	SHADER_PARAMETER(int32, InputDimY)
-	SHADER_PARAMETER(int32, InputDimZ)
-	SHADER_PARAMETER(int32, OutputDimX)
-	SHADER_PARAMETER(int32, OutputDimY)
-	SHADER_PARAMETER(int32, OutputDimZ)
+	SHADER_PARAMETER(FIntVector, InputDim)
+	SHADER_PARAMETER(FIntVector, OutputDim)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FBatchNormLayerComputeShaderParameters, "BatchNormLayerUniform");
 
@@ -98,12 +94,8 @@ void FBatchNormLayer::RunLayer_RenderThread(
 
 	// Bind shader uniform
 	FBatchNormLayerComputeShader::FParameters UniformParam;
-	UniformParam.InputDimX  = InputDim.X;
-	UniformParam.InputDimY  = InputDim.Y;
-	UniformParam.InputDimZ  = InputDim.Z;
-	UniformParam.OutputDimX = OutputDim.X;
-	UniformParam.OutputDimY = OutputDim.Y;
-	UniformParam.OutputDimZ = OutputDim.Z;
+	UniformParam.InputDim  = InputDim;
+	UniformParam.OutputDim = OutputDim;
 	BatchNormLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader

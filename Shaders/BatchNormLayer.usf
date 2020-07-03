@@ -7,8 +7,8 @@ RWStructuredBuffer<float> OutputBuffer;
 [numthreads(32, 32, 1)]
 void BatchNormLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint3 InputDim = uint3(BatchNormLayerUniform.InputDimX, BatchNormLayerUniform.InputDimY, BatchNormLayerUniform.InputDimZ);
-	const uint3 OutputDim = uint3(BatchNormLayerUniform.OutputDimX, BatchNormLayerUniform.OutputDimY, BatchNormLayerUniform.OutputDimZ);
+	const uint3 InputDim  = BatchNormLayerUniform.InputDim;
+	const uint3 OutputDim = BatchNormLayerUniform.OutputDim;
 	const float Epsilon = 1e-3;
 	
 	float Gamma    = WeightBuffer[ThreadId.y * 4];

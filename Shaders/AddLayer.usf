@@ -7,16 +7,10 @@ RWStructuredBuffer<float> OutputBuffer;
 [numthreads(32, 32, 1)]
 void AddLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint3 InputDim = uint3(AddLayerUniform.InputDimX, AddLayerUniform.InputDimY, AddLayerUniform.InputDimZ);
-	const uint3 OutputDim = uint3(AddLayerUniform.OutputDimX, AddLayerUniform.OutputDimY, AddLayerUniform.OutputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		AddLayerUniform.InputDimIndexMultX,
-		AddLayerUniform.InputDimIndexMultY,
-		AddLayerUniform.InputDimIndexMultZ);
-	const uint3 OutputDimIndexMult = uint3(
-		AddLayerUniform.OutputDimIndexMultX,
-		AddLayerUniform.OutputDimIndexMultY,
-		AddLayerUniform.OutputDimIndexMultZ);
+	const uint3 InputDim           = AddLayerUniform.InputDim;
+	const uint3 OutputDim          = AddLayerUniform.OutputDim;
+	const uint3 InputDimIndexMult  = AddLayerUniform.InputDimIndexMult;
+	const uint3 OutputDimIndexMult = AddLayerUniform.OutputDimIndexMult;
 	
 	uint InputIdx = dot(ThreadId, InputDimIndexMult);
 	uint OutputIdx = dot(ThreadId, OutputDimIndexMult);

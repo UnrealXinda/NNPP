@@ -6,17 +6,11 @@ RWStructuredBuffer<float> OutputBuffer;
 [numthreads(32, 32, 1)]
 void UpSamplingLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
-	const uint3 InputDim = uint3(UpSamplingLayerUniform.InputDimX, UpSamplingLayerUniform.InputDimY, UpSamplingLayerUniform.InputDimZ);
-	const uint3 OutputDim = uint3(UpSamplingLayerUniform.OutputDimX, UpSamplingLayerUniform.OutputDimY, UpSamplingLayerUniform.OutputDimZ);
-	const uint3 InputDimIndexMult = uint3(
-		UpSamplingLayerUniform.InputDimIndexMultX,
-		UpSamplingLayerUniform.InputDimIndexMultY,
-		UpSamplingLayerUniform.InputDimIndexMultZ);
-	const uint3 OutputDimIndexMult = uint3(
-		UpSamplingLayerUniform.OutputDimIndexMultX,
-		UpSamplingLayerUniform.OutputDimIndexMultY,
-		UpSamplingLayerUniform.OutputDimIndexMultZ);
-	const uint2 Size = uint2(UpSamplingLayerUniform.SizeX, UpSamplingLayerUniform.SizeY);
+	const uint3 InputDim           = UpSamplingLayerUniform.InputDim;
+	const uint3 OutputDim          = UpSamplingLayerUniform.OutputDim;
+	const uint3 InputDimIndexMult  = UpSamplingLayerUniform.InputDimIndexMult;
+	const uint3 OutputDimIndexMult = UpSamplingLayerUniform.OutputDimIndexMult;
+	const uint2 Size               = UpSamplingLayerUniform.Size;
 	
 	uint OutputIdx = dot(ThreadId, OutputDimIndexMult);
 	

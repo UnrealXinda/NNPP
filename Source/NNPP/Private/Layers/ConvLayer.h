@@ -29,19 +29,14 @@ public:
 
 private:
 
+	inline static const TArray<int32> kChannels = { 8, 12, 16, 20, 32, 64, 128, 256 };
+
 	FStructuredBufferRHIRef   WeightBuffer;
 	FShaderResourceViewRHIRef WeightBufferSRV;
 
-};
+private:
 
-template <int32 FilterSize>
-struct FConvLayerFunctor
-{
-public:
-	static void Run(
-		const FConvLayer&          ConvLayer,
-		FRHICommandList&           RHICmdList,
-		FUnorderedAccessViewRHIRef OutputBufferUAV,
-		FShaderResourceViewRHIRef  InputBufferSRV,
-		FShaderResourceViewRHIRef  WeightBufferSRV);
+	template <class ShaderClass>
+	void DispatchConvShader_RenderThread(FRHICommandList& RHICmdList, FShaderResourceViewRHIRef InputBufferSRV);
+
 };

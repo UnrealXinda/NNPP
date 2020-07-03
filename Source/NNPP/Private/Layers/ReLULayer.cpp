@@ -4,15 +4,9 @@
 #include "Layers/NNLayerUtils.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReLULayerComputeShaderParameters, )
-	SHADER_PARAMETER(int32, InputDimX)
-	SHADER_PARAMETER(int32, InputDimY)
-	SHADER_PARAMETER(int32, InputDimZ)
-	SHADER_PARAMETER(int32, OutputDimX)
-	SHADER_PARAMETER(int32, OutputDimY)
-	SHADER_PARAMETER(int32, OutputDimZ)
-	SHADER_PARAMETER(int32, InputDimIndexMultX)
-	SHADER_PARAMETER(int32, InputDimIndexMultY)
-	SHADER_PARAMETER(int32, InputDimIndexMultZ)
+	SHADER_PARAMETER(FIntVector, InputDim)
+	SHADER_PARAMETER(FIntVector, OutputDim)
+	SHADER_PARAMETER(FIntVector, InputDimIndexMult)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FReLULayerComputeShaderParameters, "ReLULayerUniform");
 
@@ -95,15 +89,9 @@ void FReLULayer::RunLayer_RenderThread(
 
 	// Bind shader uniform
 	FReLULayerComputeShader::FParameters UniformParam;
-	UniformParam.InputDimX          = InputDim.X;
-	UniformParam.InputDimY          = InputDim.Y;
-	UniformParam.InputDimZ          = InputDim.Z;
-	UniformParam.OutputDimX         = OutputDim.X;
-	UniformParam.OutputDimY         = OutputDim.Y;
-	UniformParam.OutputDimZ         = OutputDim.Z;
-	UniformParam.InputDimIndexMultX = OutputDim.Z;
-	UniformParam.InputDimIndexMultY = 1;
-	UniformParam.InputDimIndexMultZ = 1;
+	UniformParam.InputDim          = InputDim;
+	UniformParam.OutputDim         = OutputDim;
+	UniformParam.InputDimIndexMult = FIntVector(OutputDim.Z, 1, 1);
 	ReLULayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader
