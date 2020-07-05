@@ -108,8 +108,8 @@ void FInputLayer::RunLayer_RenderThread(
 	InputLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader
-	const int32 ThreadGroupCountX = FMath::CeilToInt(InputDim.X / 8.0f);
-	const int32 ThreadGroupCountY = FMath::CeilToInt(InputDim.Y / 8.0f);
+	const int32 ThreadGroupCountX = FMath::CeilToInt(InputDim.X / 32.0f);
+	const int32 ThreadGroupCountY = FMath::CeilToInt(InputDim.Y / 32.0f);
 	const int32 ThreadGroupCountZ = 1;
 	DispatchComputeShader(RHICmdList, InputLayerCS, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 

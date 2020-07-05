@@ -4,7 +4,7 @@ StructuredBuffer<float> InputBuffer1;
 StructuredBuffer<float> InputBuffer2;
 RWStructuredBuffer<float> OutputBuffer;
 
-[numthreads(8, 8, 1)]
+[numthreads(32, 32, 1)]
 void AddLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint3 InputDim           = AddLayerUniform.InputDim;

@@ -304,11 +304,6 @@ void FNNModel::SetupLayers(FIntPoint ImageDim)
 		OutputLayer->SetupOutputDimension(FIntVector(ImageDim.X, ImageDim.Y, InputLayer->InputChannels));
 
 		CachedImageDim = ImageDim;
-
-		for (const auto& layer : Layers)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("%s: %s"), *(layer->GetName().ToString()), *(layer->GetOutputDim().ToString()));
-		}
 	}
 }
 

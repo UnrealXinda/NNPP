@@ -3,13 +3,13 @@
 StructuredBuffer<float> InputBuffer;
 RWTexture2D<float4> OutputTexture;
 
-[numthreads(8, 8, 1)]
+[numthreads(32, 32, 1)]
 void OutputLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint3 InputDim          = OutputLayerUniform.InputDim;
 	const uint3 InputDimIndexMult = OutputLayerUniform.InputDimIndexMult;
 	
-	if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
+	//if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
 	{		
 		uint2 RemappedId = uint2(ThreadId.y, InputDim.x - 1 - ThreadId.x);
 		OutputTexture[RemappedId.xy] = float4(
