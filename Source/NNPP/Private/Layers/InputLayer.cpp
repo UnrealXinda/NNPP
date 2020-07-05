@@ -52,7 +52,7 @@ private:
 IMPLEMENT_GLOBAL_SHADER(FInputLayerComputeShader, "/Plugin/NNPP/InputLayer.usf", "InputLayer", SF_Compute);
 
 FInputLayer::FInputLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::Input)
 {
 
 }
@@ -65,11 +65,27 @@ FInputLayer::~FInputLayer()
 void FInputLayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
+
+	OutputDim = InInputDim;
+
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
 }
 
-void FInputLayer::ReleaseResource()
+void FInputLayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();
 }
 
 void FInputLayer::RunLayer_RenderThread(

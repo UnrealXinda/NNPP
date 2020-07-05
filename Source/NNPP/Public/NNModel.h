@@ -11,15 +11,20 @@ public:
 
 	FNNModel();
 
-	void Predict(FUnorderedAccessViewRHIRef DstUAV, FShaderResourceViewRHIRef SrcSRV);
+	void Predict(FRHITexture* TargetTexture, FShaderResourceViewRHIRef SrcSRV, FIntPoint ImageDim);
+	void LoadModel(const TCHAR* ModelFile);
 
 protected:
 
 	TArray<TUniquePtr<FNNLayerBase>> Layers;
 
-	int32 CachedWidth, CachedHeight;
+	FIntPoint CachedImageDim;
 
 protected:
 
-	void Predict_RenderThread(FRHICommandListImmediate& RHICmdList, FUnorderedAccessViewRHIRef DstUAV, FShaderResourceViewRHIRef SrcSRV);
+	void SetupLayers(FIntPoint ImageDim);
+	void Predict_RenderThread(
+		FRHICommandListImmediate& RHICmdList,
+		FRHITexture*              TargetTexture,
+		FShaderResourceViewRHIRef SrcSRV);
 };

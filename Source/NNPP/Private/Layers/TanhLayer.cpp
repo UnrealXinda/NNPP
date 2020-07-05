@@ -54,7 +54,7 @@ IMPLEMENT_GLOBAL_SHADER(FTanhLayerComputeShader, "/Plugin/NNPP/TanhLayer.usf", "
 
 
 FTanhLayer::FTanhLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::Tanh)
 {
 
 }
@@ -67,11 +67,27 @@ FTanhLayer::~FTanhLayer()
 void FTanhLayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
+
+	OutputDim = InInputDim;
+
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
 }
 
-void FTanhLayer::ReleaseResource()
+void FTanhLayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();
 }
 
 void FTanhLayer::RunLayer_RenderThread(
@@ -91,7 +107,7 @@ void FTanhLayer::RunLayer_RenderThread(
 	FTanhLayerComputeShader::FParameters UniformParam;
 	UniformParam.InputDim          = InputDim;
 	UniformParam.OutputDim         = OutputDim;
-	UniformParam.InputDimIndexMult = FIntVector(OutputDim.Z, 1, 1);
+	UniformParam.InputDimIndexMult = FIntVector(OutputDim.X, 1, 1);
 	TanhLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader

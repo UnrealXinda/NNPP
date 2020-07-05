@@ -4,7 +4,7 @@ StructuredBuffer<float> InputBuffer;
 StructuredBuffer<float> WeightBuffer;
 RWStructuredBuffer<float> OutputBuffer;
 
-[numthreads(32, 32, 1)]
+[numthreads(32, 1, 1)]
 void BatchNormLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint3 InputDim  = BatchNormLayerUniform.InputDim;

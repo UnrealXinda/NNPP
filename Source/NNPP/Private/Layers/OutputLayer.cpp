@@ -52,7 +52,7 @@ private:
 IMPLEMENT_GLOBAL_SHADER(FOutputLayerComputeShader, "/Plugin/NNPP/OutputLayer.usf", "OutputLayer", SF_Compute);
 
 FOutputLayer::FOutputLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::Output)
 {
 
 }
@@ -67,9 +67,11 @@ void FOutputLayer::SetupLayer(FIntVector InInputDim)
 	FNNLayerBase::SetupLayer(InInputDim);
 }
 
-void FOutputLayer::ReleaseResource()
+void FOutputLayer::ReleaseRenderResources()
 {
+	FNNLayerBase::ReleaseRenderResources();
 
+	ReleaseTextureResources();
 }
 
 void FOutputLayer::RunLayer_RenderThread(
@@ -83,7 +85,7 @@ void FOutputLayer::RunLayer_RenderThread(
 	TShaderMapRef<FOutputLayerComputeShader> OutputLayerCS(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
 	RHICmdList.SetComputeShader(OutputLayerCS.GetComputeShader());
 
-	//OutputLayerCS->BindShaderBuffers(RHICmdList, ???, InputBufferSRV);
+	OutputLayerCS->BindShaderBuffers(RHICmdList, OutputTextureUAV, InputBufferSRV);
 
 	// Bind shader uniform
 	FOutputLayerComputeShader::FParameters UniformParam;
@@ -99,4 +101,30 @@ void FOutputLayer::RunLayer_RenderThread(
 
 	// Unbind shader textures
 	OutputLayerCS->UnbindShaderBuffers(RHICmdList);
+}
+
+void FOutputLayer::CopyToTargetTexture_RenderThread(FRHICommandList& RHICmdList, FRHITexture* TargetTexture)
+{
+	check(IsInRenderingThread());
+
+	RHICmdList.CopyToResolveTarget(OutputTexture, TargetTexture, FResolveParams());
+}
+
+
+void FOutputLayer::ReleaseTextureResources()
+{
+	ReleaseRenderResource<FTexture2DRHIRef>(OutputTexture);
+	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(OutputTextureUAV);
+}
+
+void FOutputLayer::SetupOutputDimension(FIntVector InOutputDim)
+{
+	OutputDim = InOutputDim;
+
+	ReleaseTextureResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputTexture = RHICreateTexture2D(OutputDim.X, OutputDim.Y, PF_FloatRGBA, 1, 1, TexCreate_UAV, CreateInfo);
+	OutputTextureUAV = RHICreateUnorderedAccessView(OutputTexture);
 }

@@ -84,8 +84,26 @@ DECLARE_CONV_LAYER_SHADER(64);
 DECLARE_CONV_LAYER_SHADER(128);
 DECLARE_CONV_LAYER_SHADER(256);
 
+namespace
+{
+	inline int GetSupportedConvChannel(int32 Channels)
+	{
+		auto Predicate = [Channels](const int32& Channel) -> bool
+		{
+			return Channel >= Channels;
+		};
+
+		if (const int32* SupportedChannel = FConvLayer::kChannels.FindByPredicate(Predicate))
+		{
+			return *SupportedChannel;
+		}
+
+		return -1;
+	}
+}
+
 FConvLayer::FConvLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::Conv)
 {
 
 }
@@ -101,12 +119,27 @@ void FConvLayer::SetupLayer(FIntVector InInputDim)
 
 	OutputDim = FIntVector(InputDim.X / Stride.X, InputDim.Y / Stride.Y, Filters);
 
-	ReleaseResource();
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
+
+	ConvChannels = GetSupportedConvChannel(FMath::Max(InputDim.Z, Filters));
 }
 
-void FConvLayer::ReleaseResource()
+void FConvLayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();	
+	ReleaseWeightBuffers();
 }
 
 void FConvLayer::RunLayer_RenderThread(
@@ -114,7 +147,33 @@ void FConvLayer::RunLayer_RenderThread(
 	FShaderResourceViewRHIRef InputBufferSRV,
 	FShaderResourceViewRHIRef OptionalInputBufferSRV /*= nullptr*/)
 {
-	DispatchConvShader_RenderThread<FConvLayer128ComputeShader>(RHICmdList, InputBufferSRV);
+	switch (ConvChannels)
+	{
+	case 8:
+		DispatchConvShader_RenderThread<FConvLayer8ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 12:
+		DispatchConvShader_RenderThread<FConvLayer12ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 16:
+		DispatchConvShader_RenderThread<FConvLayer16ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 20:
+		DispatchConvShader_RenderThread<FConvLayer20ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 32:
+		DispatchConvShader_RenderThread<FConvLayer32ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 64:
+		DispatchConvShader_RenderThread<FConvLayer64ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 128:
+		DispatchConvShader_RenderThread<FConvLayer128ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	case 256:
+		DispatchConvShader_RenderThread<FConvLayer256ComputeShader>(RHICmdList, InputBufferSRV);
+		break;
+	}	
 
 	// Make UAV safe for read
 	RHICmdList.TransitionResource(
@@ -142,10 +201,36 @@ void FConvLayer::DispatchConvShader_RenderThread(FRHICommandList& RHICmdList, FS
 	UniformParam.Stride             = Stride;
 	ConvLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
-	const int32 ThreadGroupCountX = FMath::CeilToInt(OutputDim.Y * OutputDim.Z / 32.0f);
-	const int32 ThreadGroupCountY = OutputDim.X;
-	const int32 ThreadGroupCountZ = 1;
+	const int32 ThreadGroupCountX = 1;
+	const int32 ThreadGroupCountY = OutputDim.Y;
+	const int32 ThreadGroupCountZ = FMath::CeilToInt(OutputDim.X / 4.0f);;
 	DispatchComputeShader(RHICmdList, ConvLayerCS, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
 	ConvLayerCS->UnbindShaderBuffers(RHICmdList);
+}
+
+void FConvLayer::SetupWeightBuffer(const float* WeightData, int32 Size)
+{
+	// Always release before reallocating new buffers
+	ReleaseWeightBuffers();
+
+	TResourceArray<float> ResourceArray;
+	ResourceArray.AddUninitialized(Size);
+	FMemory::Memcpy(ResourceArray.GetData(), WeightData, sizeof(float) * Size);
+
+	FRHIResourceCreateInfo CreateInfo(&ResourceArray);
+
+	WeightBuffer = RHICreateStructuredBuffer(
+		sizeof(float),          // Stride
+		sizeof(float) * Size,   // Size
+		BUF_ShaderResource,     // Usage
+		CreateInfo              // Create info
+	);
+	WeightBufferSRV = RHICreateShaderResourceView(WeightBuffer);
+}
+
+void FConvLayer::ReleaseWeightBuffers()
+{
+	ReleaseRenderResource<FStructuredBufferRHIRef>(WeightBuffer);
+	ReleaseRenderResource<FShaderResourceViewRHIRef>(WeightBufferSRV);
 }

@@ -2,18 +2,25 @@
 
 #include "NNLayerBase.h"
 
-FNNLayerBase::FNNLayerBase()
+FNNLayerBase::FNNLayerBase(ENNLayerType InType) :
+	LayerType(InType)
 {
 
 }
 
 FNNLayerBase::~FNNLayerBase()
 {
-
+	ReleaseRenderResources();
 }
 
 void FNNLayerBase::SetupLayer(FIntVector InInputDim)
 {
-	InputDim  = InInputDim;
-	OutputDim = InInputDim;
+	InputDim = InInputDim;
+}
+
+void FNNLayerBase::ReleaseRenderResources()
+{
+	ReleaseRenderResource<FStructuredBufferRHIRef>(OutputBuffer);
+	ReleaseRenderResource<FShaderResourceViewRHIRef>(OutputBufferSRV);
+	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(OutputBufferUAV);
 }

@@ -1,17 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class NNPP : ModuleRules
 {
 	public NNPP(ReadOnlyTargetRules Target) : base(Target)
 	{
+		string ModuleRootDirectory = Path.Combine(ModuleDirectory, "../..");
+		string ThirdPartyInclude = "ThirdParty/Include";
+
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		CppStandard = CppStandardVersion.Cpp17;
+		OptimizeCode = CodeOptimization.Never;
+
+		// Json.hpp requires RTTI since it uses dynamic_cast
+		bUseRTTI = true;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
+				Path.Combine(ModuleRootDirectory, ThirdPartyInclude),
 			}
 			);
 				

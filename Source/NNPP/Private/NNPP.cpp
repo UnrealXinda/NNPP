@@ -7,7 +7,7 @@
 
 void FNNPPModule::StartupModule()
 {
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("NNPP"))->GetBaseDir(), TEXT("Shaders"));
+	FString PluginShaderDir = FPaths::Combine(GetPluginDirectory(), TEXT("Shaders"));
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/NNPP"), PluginShaderDir);
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 }
@@ -16,6 +16,11 @@ void FNNPPModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
+}
+
+FString FNNPPModule::GetPluginDirectory()
+{
+	return IPluginManager::Get().FindPlugin(TEXT("NNPP"))->GetBaseDir();
 }
 
 #undef LOCTEXT_NAMESPACE

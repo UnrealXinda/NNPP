@@ -54,7 +54,7 @@ IMPLEMENT_GLOBAL_SHADER(FReLULayerComputeShader, "/Plugin/NNPP/ReLULayer.usf", "
 
 
 FReLULayer::FReLULayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::ReLU)
 {
 
 }
@@ -67,11 +67,27 @@ FReLULayer::~FReLULayer()
 void FReLULayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
+
+	OutputDim = InInputDim;
+
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
 }
 
-void FReLULayer::ReleaseResource()
+void FReLULayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();
 }
 
 void FReLULayer::RunLayer_RenderThread(
@@ -91,7 +107,7 @@ void FReLULayer::RunLayer_RenderThread(
 	FReLULayerComputeShader::FParameters UniformParam;
 	UniformParam.InputDim          = InputDim;
 	UniformParam.OutputDim         = OutputDim;
-	UniformParam.InputDimIndexMult = FIntVector(OutputDim.Z, 1, 1);
+	UniformParam.InputDimIndexMult = FIntVector(OutputDim.X, 1, 1);
 	ReLULayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader

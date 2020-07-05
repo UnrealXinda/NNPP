@@ -55,7 +55,7 @@ private:
 IMPLEMENT_GLOBAL_SHADER(FUpSamplingLayerComputeShader, "/Plugin/NNPP/UpSamplingLayer.usf", "UpSamplingLayer", SF_Compute);
 
 FUpSamplingLayer::FUpSamplingLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::UpSampling)
 {
 
 }
@@ -68,11 +68,27 @@ FUpSamplingLayer::~FUpSamplingLayer()
 void FUpSamplingLayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
+
+	OutputDim = InInputDim;
+
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
 }
 
-void FUpSamplingLayer::ReleaseResource()
+void FUpSamplingLayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();
 }
 
 void FUpSamplingLayer::RunLayer_RenderThread(
@@ -92,7 +108,7 @@ check(IsInRenderingThread());
 	FUpSamplingLayerComputeShader::FParameters UniformParam;
 	UniformParam.InputDim           = InputDim;
 	UniformParam.OutputDim          = OutputDim;
-	UniformParam.InputDimIndexMult  = FIntVector(InputDim.Y * InputDim.Z, InputDim.X, 1);
+	UniformParam.InputDimIndexMult  = FIntVector(InputDim.Y * InputDim.Z, InputDim.Z, 1);
 	UniformParam.OutputDimIndexMult = FIntVector(OutputDim.Y * OutputDim.Z, OutputDim.Z, 1);
 	UniformParam.Size               = Size;
 	UpSamplingLayerCS->SetShaderParameters(RHICmdList, UniformParam);

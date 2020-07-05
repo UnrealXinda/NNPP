@@ -14,8 +14,8 @@ void InputLayer(uint3 ThreadId : SV_DispatchThreadID)
 		uint2 RemappedId = uint2(ThreadId.y, InputDim.x - 1 - ThreadId.x);
 		float4 Color = InputTexture[RemappedId.xy] * 2.0f - 1.0f;
 		
-		OutputBuffer[dot(uint3(ThreadId.xy, 0), InputDimIndexMult)] = Color.x;
-		OutputBuffer[dot(uint3(ThreadId.xy, 1), InputDimIndexMult)] = Color.y;
-		OutputBuffer[dot(uint3(ThreadId.xy, 2), InputDimIndexMult)] = Color.z;
+		OutputBuffer[dot(uint3(ThreadId.xy, 0), InputDimIndexMult)] = Color.r;
+		OutputBuffer[dot(uint3(ThreadId.xy, 1), InputDimIndexMult)] = Color.g;
+		OutputBuffer[dot(uint3(ThreadId.xy, 2), InputDimIndexMult)] = Color.b;
 	}
 }

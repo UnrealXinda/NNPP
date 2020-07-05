@@ -33,3 +33,12 @@ void SetShaderParameters(FRHICommandList& RHICmdList, const FParameters& Paramet
 	SetUniformBufferParameterImmediate(RHICmdList, ComputeShader, Param, Parameters);          \
 }                                                                                              \
 public:
+
+template <class ResourceType>
+inline void ReleaseRenderResource(ResourceType Resource)
+{
+	if (Resource.IsValid())
+	{
+		Resource->Release();
+	}
+}

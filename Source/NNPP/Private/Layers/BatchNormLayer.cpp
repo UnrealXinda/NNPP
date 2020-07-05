@@ -59,7 +59,7 @@ private:
 IMPLEMENT_GLOBAL_SHADER(FBatchNormLayerComputeShader, "/Plugin/NNPP/BatchNormLayer.usf", "BatchNormLayer", SF_Compute);
 
 FBatchNormLayer::FBatchNormLayer() :
-	FNNLayerBase()
+	FNNLayerBase(ENNLayerType::BatchNorm)
 {
 
 }
@@ -72,11 +72,28 @@ FBatchNormLayer::~FBatchNormLayer()
 void FBatchNormLayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
+
+	OutputDim = InInputDim;
+
+	// Release all output buffer resources
+	FNNLayerBase::ReleaseRenderResources();
+
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputBuffer = RHICreateStructuredBuffer(
+		sizeof(float),                                             // Stride
+		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
+		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
+		CreateInfo                                                 // Create info
+	);
+	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
+	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
 }
 
-void FBatchNormLayer::ReleaseResource()
+void FBatchNormLayer::ReleaseRenderResources()
 {
-
+	FNNLayerBase::ReleaseRenderResources();
+	ReleaseWeightBuffers();
 }
 
 void FBatchNormLayer::RunLayer_RenderThread(
@@ -113,4 +130,30 @@ void FBatchNormLayer::RunLayer_RenderThread(
 		EResourceTransitionPipeline::EComputeToCompute,
 		OutputBufferUAV,
 		nullptr);
+}
+
+void FBatchNormLayer::SetupWeightBuffer(const float* WeightData, int32 Size)
+{
+	// Always release before reallocating new buffers
+	ReleaseWeightBuffers();
+
+	TResourceArray<float> ResourceArray;
+	ResourceArray.AddUninitialized(Size);
+	FMemory::Memcpy(ResourceArray.GetData(), WeightData, sizeof(float) * Size);
+
+	FRHIResourceCreateInfo CreateInfo(&ResourceArray);
+
+	WeightBuffer = RHICreateStructuredBuffer(
+		sizeof(float),          // Stride
+		sizeof(float) * Size,   // Size
+		BUF_ShaderResource,     // Usage
+		CreateInfo              // Create info
+	);
+	WeightBufferSRV = RHICreateShaderResourceView(WeightBuffer);
+}
+
+void FBatchNormLayer::ReleaseWeightBuffers()
+{
+	ReleaseRenderResource<FStructuredBufferRHIRef>(WeightBuffer);
+	ReleaseRenderResource<FShaderResourceViewRHIRef>(WeightBufferSRV);
 }
