@@ -69,7 +69,7 @@ void FUpSamplingLayer::SetupLayer(FIntVector InInputDim)
 {
 	FNNLayerBase::SetupLayer(InInputDim);
 
-	OutputDim = InInputDim;
+	OutputDim = FIntVector(InInputDim.X * Size.X, InInputDim.Y * Size.Y, InInputDim.Z);
 
 	// Release all output buffer resources
 	FNNLayerBase::ReleaseRenderResources();
@@ -114,8 +114,8 @@ check(IsInRenderingThread());
 	UpSamplingLayerCS->SetShaderParameters(RHICmdList, UniformParam);
 
 	// Dispatch shader
-	const int32 ThreadGroupCountX = FMath::CeilToInt(OutputDim.X / 32.0f);
-	const int32 ThreadGroupCountY = FMath::CeilToInt(OutputDim.Y / 32.0f);
+	const int32 ThreadGroupCountX = FMath::CeilToInt(OutputDim.X / 8.0f);
+	const int32 ThreadGroupCountY = FMath::CeilToInt(OutputDim.Y / 8.0f);
 	const int32 ThreadGroupCountZ = OutputDim.Z;
 	DispatchComputeShader(RHICmdList, UpSamplingLayerCS, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 

@@ -18,8 +18,8 @@ void BatchNormLayer(uint3 ThreadId : SV_DispatchThreadID)
 	
 	uint Idx = ThreadId.x * InputDim.z + ThreadId.y;
 	
-	if (Idx < InputDim.x * InputDim.y * InputDim.z 
-		&& Idx < OutputDim.x * OutputDim.y * OutputDim.z)
+	//if (Idx < InputDim.x * InputDim.y * InputDim.z 
+		//&& Idx < OutputDim.x * OutputDim.y * OutputDim.z)
 	{
 		OutputBuffer[Idx] = (InputBuffer[Idx] - Mean) * Gamma * rcp(sqrt(Variance + Epsilon)) + Beta;
 	}

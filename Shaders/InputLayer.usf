@@ -3,7 +3,7 @@
 Texture2D<float4> InputTexture;
 RWStructuredBuffer<float> OutputBuffer;
 
-[numthreads(32, 32, 1)]
+[numthreads(8, 8, 1)]
 void InputLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint3 InputDim          = InputLayerUniform.InputDim;

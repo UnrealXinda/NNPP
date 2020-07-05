@@ -3,7 +3,7 @@
 StructuredBuffer<float> InputBuffer;
 RWStructuredBuffer<float> OutputBuffer;
 
-[numthreads(32, 32, 1)]
+[numthreads(8, 8, 1)]
 void UpSamplingLayer(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint3 InputDim           = UpSamplingLayerUniform.InputDim;
