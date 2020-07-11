@@ -236,7 +236,6 @@ FNNModel::~FNNModel()
 
 void FNNModel::Predict(FRHITexture* TargetTexture, FShaderResourceViewRHIRef SrcSRV, FIntPoint ImageDim)
 {
-	// Swap width and height
 	SetupLayers(ImageDim);
 
 	ENQUEUE_RENDER_COMMAND(KaleidoComputeCommand)
@@ -257,6 +256,7 @@ void FNNModel::LoadModel(const TCHAR* ModelFile)
 		try
 		{
 			Layers.Empty();
+			ResetModel();
 
 			auto fileLength = FileContent.Len();
 			auto jsonContent = json::parse(*FileContent, *FileContent + fileLength);

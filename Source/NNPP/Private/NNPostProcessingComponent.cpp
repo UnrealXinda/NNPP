@@ -52,9 +52,3 @@ void UNNPostProcessingComponent::RunNeuralNetwork()
 		NNModel->Predict(RenderTargetTextureRef, InputTextureSRV, FIntPoint(TextureWidth, TextureHeight));
 	}
 }
-
-void UNNPostProcessingComponent::Render()
-{
-	RunNeuralNetwork();
-}
-

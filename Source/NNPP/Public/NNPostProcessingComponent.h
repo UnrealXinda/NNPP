@@ -19,10 +19,6 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void RunNeuralNetwork();
-
-	UFUNCTION(BlueprintCallable)
-	void Render();
 
 protected:
 
@@ -37,11 +33,8 @@ protected:
 
 	TUniquePtr<FNNModel> NNModel;
 
-	FTexture2DRHIRef           TempOutputTextureRef;
-	FUnorderedAccessViewRHIRef TempOutputTextureUAV;
-
 protected:
 
 	virtual void BeginPlay() override;
-
+	void RunNeuralNetwork();
 };
