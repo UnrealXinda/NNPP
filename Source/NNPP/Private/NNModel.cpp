@@ -196,40 +196,42 @@ namespace
 		return NNLayer;
 	}
 
-	void ReleaseNNBuffer(FNNBuffer Buffer)
-	{
-		ReleaseRenderResource<FStructuredBufferRHIRef>(Buffer.Buffer);
-		ReleaseRenderResource<FShaderResourceViewRHIRef>(Buffer.BufferSRV);
-		ReleaseRenderResource<FUnorderedAccessViewRHIRef>(Buffer.BufferUAV);
-	}
-
 	FORCEINLINE FNNBufferSize SizeFromVector(FIntVector Dim)
 	{
 		return Dim.X * Dim.Y * Dim.Z;
 	}
+}
 
-	FNNBuffer AllocNNBuffer(FNNBufferSize Size)
-	{
-		FNNBuffer Buffer;
-		FRHIResourceCreateInfo CreateInfo;
+FNNBuffer::FNNBuffer(FNNBufferSize InSize) :
+	Size(InSize)
+{
+	FRHIResourceCreateInfo CreateInfo;
 
-		Buffer.Size = Size;
-		Buffer.Buffer = RHICreateStructuredBuffer(
-			sizeof(float),                            // Stride
-			sizeof(float) * Size,                     // Size
-			BUF_UnorderedAccess | BUF_ShaderResource, // Usage
-			CreateInfo                                // Create info
-		);
-		Buffer.BufferSRV = RHICreateShaderResourceView(Buffer.Buffer);
-		Buffer.BufferUAV = RHICreateUnorderedAccessView(Buffer.Buffer, true, false);
+	Buffer = RHICreateStructuredBuffer(
+		sizeof(float),                            // Stride
+		sizeof(float) * Size,                     // Size
+		BUF_UnorderedAccess | BUF_ShaderResource, // Usage
+		CreateInfo                                // Create info
+	);
+	BufferSRV = RHICreateShaderResourceView(Buffer);
+	BufferUAV = RHICreateUnorderedAccessView(Buffer, true, false);
+}
 
-		return Buffer;
-	}
+FNNBuffer::~FNNBuffer()
+{
+	ReleaseRenderResource<FStructuredBufferRHIRef>(Buffer);
+	ReleaseRenderResource<FShaderResourceViewRHIRef>(BufferSRV);
+	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(BufferUAV);
 }
 
 FNNModel::FNNModel()
 {
 
+}
+
+FNNModel::~FNNModel()
+{
+	ResetModel();
 }
 
 void FNNModel::Predict(FRHITexture* TargetTexture, FShaderResourceViewRHIRef SrcSRV, FIntPoint ImageDim)
@@ -321,10 +323,6 @@ void FNNModel::SetupLayers(FIntPoint ImageDim)
 		// Release allocated buffers and textures before reallocating
 		ResetModel();
 
-		// Reserve enough space so that adding new elements to array won't expand the array
-		// and further invalidates pointers
-		NNBuffers.Reserve(Layers.Num());
-
 		FInputLayer* InputLayer = StaticCast<FInputLayer*>(Layers[0].Get());
 
 		// Swap width and height
@@ -362,23 +360,29 @@ void FNNModel::Predict_RenderThread(
 	auto RunLayerImpl = [this](
 		FRHICommandList& RHICmdList,
 		FNNLayerIndex    LayerIdx,
-		const FNNBuffer* InputBuffer,
-		const FNNBuffer* OptionalInputBuffer,
-		bool             bShouldCache) -> const FNNBuffer*
+		FNNBufferWeakPtr InputBufferPtr,
+		FNNBufferWeakPtr OptionalInputBufferPtr,
+		bool             bShouldCache) -> FNNBufferWeakPtr
 	{
 		FNNLayerBase* Layer = Layers[LayerIdx].Get();
 		FIntVector OutputDim = Layer->GetOutputDim();
-		const FNNBuffer* OutputBuffer = DequeueAvailableBuffer(SizeFromVector(OutputDim));
+		FNNBufferWeakPtr OutputBufferPtr = DequeueAvailableBuffer(SizeFromVector(OutputDim));
 
-		FUnorderedAccessViewRHIRef OutputUAV = OutputBuffer->BufferUAV;
-		FShaderResourceViewRHIRef InputSRV = InputBuffer->BufferSRV;
-		FShaderResourceViewRHIRef OptionalInputSRV = OptionalInputBuffer != nullptr ? OptionalInputBuffer->BufferSRV : nullptr;
+		FNNBufferSharedPtr InputBuffer = InputBufferPtr.Pin();
+		FNNBufferSharedPtr OutputBuffer = OutputBufferPtr.Pin();
+		FNNBufferSharedPtr OptionalInputBuffer = OptionalInputBufferPtr.Pin();
+
+		check(InputBuffer);
+		check(OutputBuffer);
+
+		FUnorderedAccessViewRHIRef OutputUAV = OutputBuffer->GetUAV();
+		FShaderResourceViewRHIRef InputSRV = InputBuffer->GetSRV();
+		FShaderResourceViewRHIRef OptionalInputSRV = OptionalInputBuffer ? OptionalInputBuffer->GetSRV() : nullptr;
 
 		Layer->RunLayer_RenderThread(RHICmdList, OutputUAV, InputSRV, OptionalInputSRV);
 
 		if (bShouldCache)
 		{
-			// Shouldn't have been cached
 			check(!CachedLookUpTable.Contains(LayerIdx));
 			CachedLookUpTable.Add(LayerIdx, OutputBuffer);
 		}
@@ -399,15 +403,17 @@ void FNNModel::Predict_RenderThread(
 		return OutputBuffer;
 	};
 
-	const FNNBuffer* InputBuffer;
-	const FNNBuffer* OutputBuffer;
+	FNNBufferWeakPtr InputBuffer;
+	FNNBufferWeakPtr OutputBuffer;
 	FIntVector OutputDim;
 
 	FNNLayerBase* InputLayer = Layers[0].Get();
 	OutputDim = InputLayer->GetOutputDim();
 
 	OutputBuffer = DequeueAvailableBuffer(SizeFromVector(OutputDim));
-	InputLayer->RunLayer_RenderThread(RHICmdList, OutputBuffer->BufferUAV, SrcSRV);
+	FNNBufferSharedPtr OutputBufferPtr = OutputBuffer.Pin();
+	check(OutputBufferPtr);
+	InputLayer->RunLayer_RenderThread(RHICmdList, OutputBufferPtr->GetUAV(), SrcSRV);
 
 	// Previous output buffer becomes new input buffer
 	InputBuffer = OutputBuffer;
@@ -415,7 +421,7 @@ void FNNModel::Predict_RenderThread(
 	for (int32 Idx = 1; Idx < Layers.Num() - 1; ++Idx)
 	{
 		FNNLayerBase* Layer = Layers[Idx].Get();
-		const FNNBuffer* OptionalInputBuffer = nullptr;
+		FNNBufferWeakPtr OptionalInputBuffer = nullptr;
 		bool bShouldCacheOutput = LayersToCacheOutput.Contains(Idx);
 
 		if (Layer->GetLayerType() == ENNLayerType::Add)
@@ -436,7 +442,9 @@ void FNNModel::Predict_RenderThread(
 
 	FNNLayerBase* LastLayer = Layers[Layers.Num() - 1].Get();
 	FOutputLayer* OutputLayer = StaticCast<FOutputLayer*>(LastLayer);
-	OutputLayer->RunLayer_RenderThread(RHICmdList, OutputTextureUAV, OutputBuffer->BufferSRV);
+	OutputBufferPtr = OutputBuffer.Pin();
+	check(OutputBufferPtr);
+	OutputLayer->RunLayer_RenderThread(RHICmdList, OutputTextureUAV, OutputBufferPtr->GetSRV());
 	EnqueueAvailableBuffer(InputBuffer);
 
 	RHICmdList.CopyToResolveTarget(OutputTexture, TargetTexture, FResolveParams());
@@ -448,39 +456,23 @@ void FNNModel::ResetModel()
 	ReleaseOutputTexture();
 }
 
-const FNNBuffer* FNNModel::CreateNNBuffer(FNNBufferSize Size)
+FNNBufferWeakPtr FNNModel::CreateNNBuffer(FNNBufferSize Size)
 {
 	if (!NNBufferLookUpTable.Contains(Size))
 	{
 		NNBufferLookUpTable.Add(Size, FNNBufferQueue());
 	}
 
-	FNNBuffer Buffer;
-	FRHIResourceCreateInfo CreateInfo;
-
-	Buffer.Size = Size;
-	Buffer.Buffer = RHICreateStructuredBuffer(
-		sizeof(float),                            // Stride
-		sizeof(float) * Size,                     // Size
-		BUF_UnorderedAccess | BUF_ShaderResource, // Usage
-		CreateInfo                                // Create info
-	);
-	Buffer.BufferSRV = RHICreateShaderResourceView(Buffer.Buffer);
-	Buffer.BufferUAV = RHICreateUnorderedAccessView(Buffer.Buffer, true, false);
+	TSharedRef<FNNBuffer> Buffer = MakeShared<FNNBuffer>(Size);
 
 	FNNBufferQueue& Queue = NNBufferLookUpTable[Size];
-	NNBuffers.Add(AllocNNBuffer(Size));
+	NNBuffers.Add(Buffer);
 
-	return &NNBuffers[NNBuffers.Num() - 1];
+	return NNBuffers[NNBuffers.Num() - 1];
 }
 
 void FNNModel::ReleaseNNBuffers()
 {
-	for (FNNBuffer Buffer : NNBuffers)
-	{
-		ReleaseNNBuffer(Buffer);
-	}
-
 	NNBuffers.Empty();
 	NNBufferLookUpTable.Empty();
 	LayersToCacheOutput.Empty();
@@ -501,18 +493,20 @@ void FNNModel::ReleaseOutputTexture()
 	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(OutputTextureUAV);
 }
 
-void FNNModel::EnqueueAvailableBuffer(const FNNBuffer* Buffer)
+void FNNModel::EnqueueAvailableBuffer(FNNBufferWeakPtr Buffer)
 {
-	check(Buffer);
-	check(NNBufferLookUpTable.Contains(Buffer->Size));
+	FNNBufferSharedPtr BufferPtr = Buffer.Pin();
 
-	FNNBufferQueue& Queue = NNBufferLookUpTable[Buffer->Size];
-	Queue.Add(Buffer);
+	check(BufferPtr);
+	check(NNBufferLookUpTable.Contains(BufferPtr->GetSize()));
+
+	FNNBufferQueue& Queue = NNBufferLookUpTable[BufferPtr->GetSize()];
+	Queue.Add(BufferPtr);
 }
 
-const FNNBuffer* FNNModel::DequeueAvailableBuffer(FNNBufferSize Size)
+FNNBufferWeakPtr FNNModel::DequeueAvailableBuffer(FNNBufferSize Size)
 {
-	const FNNBuffer* Buffer = nullptr;
+	FNNBufferWeakPtr Buffer = nullptr;
 
 	if (NNBufferLookUpTable.Contains(Size))
 	{
@@ -525,7 +519,10 @@ const FNNBuffer* FNNModel::DequeueAvailableBuffer(FNNBufferSize Size)
 
 			for (auto It = CachedLookUpTable.CreateConstIterator(); It; ++It)
 			{
-				IsCachedOutput |= It->Value == Queue[Idx];
+				FNNBufferSharedPtr SharedPtr = (It->Value).Pin();
+				check(SharedPtr);
+
+				IsCachedOutput |= SharedPtr == Queue[Idx];
 			}
 
 			if (!IsCachedOutput)
@@ -538,7 +535,7 @@ const FNNBuffer* FNNModel::DequeueAvailableBuffer(FNNBufferSize Size)
 	}
 
 	// Create a buffer if not existed
-	if (!Buffer)
+	if (!Buffer.Pin())
 	{
 		Buffer = CreateNNBuffer(Size);
 	}
