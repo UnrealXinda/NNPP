@@ -21,11 +21,11 @@ public:
 	virtual ~FConvLayer() override;
 
 	virtual void SetupLayer(FIntVector InInputDim) override;
-	virtual void ReleaseRenderResources() override;
 	virtual void RunLayer_RenderThread(
-		FRHICommandList&          RHICmdList,
-		FShaderResourceViewRHIRef InputBufferSRV,
-		FShaderResourceViewRHIRef OptionalInputBufferSRV = nullptr) override;
+		FRHICommandList&           RHICmdList,
+		FUnorderedAccessViewRHIRef OutputBufferUAV,
+		FShaderResourceViewRHIRef  InputBufferSRV,
+		FShaderResourceViewRHIRef  OptionalInputBufferSRV = nullptr) override;
 
 	void SetupWeightBuffer(const float* WeightData, int32 Size);
 
@@ -43,6 +43,9 @@ private:
 	void ReleaseWeightBuffers();
 
 	template <class ShaderClass>
-	void DispatchConvShader_RenderThread(FRHICommandList& RHICmdList, FShaderResourceViewRHIRef InputBufferSRV);
+	void DispatchConvShader_RenderThread(
+		FRHICommandList&           RHICmdList,
+		FUnorderedAccessViewRHIRef OutputBufferUAV,
+		FShaderResourceViewRHIRef  InputBufferSRV);
 
 };

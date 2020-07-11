@@ -181,7 +181,7 @@ namespace
 
 		return NNLayer;
 	}
-	
+
 	TUniquePtr<FNNLayerBase> ParseTanhLayer(const json& layer, bool print = false)
 	{
 		auto NNLayer = MakeUnique<FTanhLayer>();
@@ -194,6 +194,36 @@ namespace
 		NNLayer->SetName(FName(*FString(name.get<std::string>().c_str())));
 
 		return NNLayer;
+	}
+
+	void ReleaseNNBuffer(FNNBuffer Buffer)
+	{
+		ReleaseRenderResource<FStructuredBufferRHIRef>(Buffer.Buffer);
+		ReleaseRenderResource<FShaderResourceViewRHIRef>(Buffer.BufferSRV);
+		ReleaseRenderResource<FUnorderedAccessViewRHIRef>(Buffer.BufferUAV);
+	}
+
+	FORCEINLINE FNNBufferSize SizeFromVector(FIntVector Dim)
+	{
+		return Dim.X * Dim.Y * Dim.Z;
+	}
+
+	FNNBuffer AllocNNBuffer(FNNBufferSize Size)
+	{
+		FNNBuffer Buffer;
+		FRHIResourceCreateInfo CreateInfo;
+
+		Buffer.Size = Size;
+		Buffer.Buffer = RHICreateStructuredBuffer(
+			sizeof(float),                            // Stride
+			sizeof(float) * Size,                     // Size
+			BUF_UnorderedAccess | BUF_ShaderResource, // Usage
+			CreateInfo                                // Create info
+		);
+		Buffer.BufferSRV = RHICreateShaderResourceView(Buffer.Buffer);
+		Buffer.BufferUAV = RHICreateUnorderedAccessView(Buffer.Buffer, true, false);
+
+		return Buffer;
 	}
 }
 
@@ -286,22 +316,37 @@ void FNNModel::SetupLayers(FIntPoint ImageDim)
 {
 	if (CachedImageDim != ImageDim)
 	{
+		FIntVector InputDim;
+
+		// Release allocated buffers and textures before reallocating
+		ResetModel();
+
+		// Reserve enough space so that adding new elements to array won't expand the array
+		// and further invalidates pointers
+		NNBuffers.Reserve(Layers.Num());
+
 		FInputLayer* InputLayer = StaticCast<FInputLayer*>(Layers[0].Get());
 
 		// Swap width and height
-		InputLayer->SetupLayer(FIntVector(ImageDim.Y, ImageDim.X, InputLayer->InputChannels));
+		InputDim = FIntVector(ImageDim.Y, ImageDim.X, InputLayer->InputChannels);
+		InputLayer->SetupLayer(InputDim);
 
 		for (int32 Idx = 1; Idx < Layers.Num(); ++Idx)
 		{
 			FNNLayerBase* Layer = Layers[Idx].Get();
 			FNNLayerBase* PrevLayer = Layers[Idx - 1].Get();
+			InputDim = PrevLayer->GetOutputDim();
 
-			Layer->SetupLayer(PrevLayer->GetOutputDim());
+			Layer->SetupLayer(InputDim);
+
+			if (Layer->GetLayerType() == ENNLayerType::Add)
+			{
+				FAddLayer* AddLayer = StaticCast<FAddLayer*>(Layer);
+				LayersToCacheOutput.Add(AddLayer->OtherInputLayerIndex);
+			}
 		}
 
-		FNNLayerBase* LastLayer = Layers[Layers.Num() - 1].Get();
-		FOutputLayer* OutputLayer = StaticCast<FOutputLayer*>(LastLayer);
-		OutputLayer->SetupOutputDimension(FIntVector(ImageDim.X, ImageDim.Y, InputLayer->InputChannels));
+		CreateOutputTexture(FIntVector(ImageDim.X, ImageDim.Y, InputLayer->InputChannels));
 
 		CachedImageDim = ImageDim;
 	}
@@ -314,30 +359,189 @@ void FNNModel::Predict_RenderThread(
 {
 	check(IsInRenderingThread());
 
-	FNNLayerBase* InputLayer = Layers[0].Get();
-	InputLayer->RunLayer_RenderThread(RHICmdList, SrcSRV);
+	auto RunLayerImpl = [this](
+		FRHICommandList& RHICmdList,
+		FNNLayerIndex    LayerIdx,
+		const FNNBuffer* InputBuffer,
+		const FNNBuffer* OptionalInputBuffer,
+		bool             bShouldCache) -> const FNNBuffer*
+	{
+		FNNLayerBase* Layer = Layers[LayerIdx].Get();
+		FIntVector OutputDim = Layer->GetOutputDim();
+		const FNNBuffer* OutputBuffer = DequeueAvailableBuffer(SizeFromVector(OutputDim));
 
-	for (int32 Idx = 1; Idx < Layers.Num(); ++Idx)
+		FUnorderedAccessViewRHIRef OutputUAV = OutputBuffer->BufferUAV;
+		FShaderResourceViewRHIRef InputSRV = InputBuffer->BufferSRV;
+		FShaderResourceViewRHIRef OptionalInputSRV = OptionalInputBuffer != nullptr ? OptionalInputBuffer->BufferSRV : nullptr;
+
+		Layer->RunLayer_RenderThread(RHICmdList, OutputUAV, InputSRV, OptionalInputSRV);
+
+		if (bShouldCache)
+		{
+			// Shouldn't have been cached
+			check(!CachedLookUpTable.Contains(LayerIdx));
+			CachedLookUpTable.Add(LayerIdx, OutputBuffer);
+		}
+
+		// Finished using the input buffer, return to available buffer queue
+		EnqueueAvailableBuffer(InputBuffer);
+
+		// Finished using cached output. Remove from the cached look up table
+		if (Layer->GetLayerType() == ENNLayerType::Add)
+		{
+			FAddLayer* AddLayer = StaticCast<FAddLayer*>(Layer);
+			int32 OtherInputLayerIdx = AddLayer->OtherInputLayerIndex;
+
+			check(CachedLookUpTable.Contains(OtherInputLayerIdx));
+			CachedLookUpTable.Remove(OtherInputLayerIdx);
+		}
+
+		return OutputBuffer;
+	};
+
+	const FNNBuffer* InputBuffer;
+	const FNNBuffer* OutputBuffer;
+	FIntVector OutputDim;
+
+	FNNLayerBase* InputLayer = Layers[0].Get();
+	OutputDim = InputLayer->GetOutputDim();
+
+	OutputBuffer = DequeueAvailableBuffer(SizeFromVector(OutputDim));
+	InputLayer->RunLayer_RenderThread(RHICmdList, OutputBuffer->BufferUAV, SrcSRV);
+
+	// Previous output buffer becomes new input buffer
+	InputBuffer = OutputBuffer;
+
+	for (int32 Idx = 1; Idx < Layers.Num() - 1; ++Idx)
 	{
 		FNNLayerBase* Layer = Layers[Idx].Get();
-		FNNLayerBase* PrevLayer = Layers[Idx - 1].Get();
-
-		FShaderResourceViewRHIRef InputSRV = PrevLayer->GetOutputBufferSRV();
-		FShaderResourceViewRHIRef OptionalInputSRV = nullptr;
+		const FNNBuffer* OptionalInputBuffer = nullptr;
+		bool bShouldCacheOutput = LayersToCacheOutput.Contains(Idx);
 
 		if (Layer->GetLayerType() == ENNLayerType::Add)
 		{
 			FAddLayer* AddLayer = StaticCast<FAddLayer*>(Layer);
 			int32 OtherInputLayerIdx = AddLayer->OtherInputLayerIndex;
-			FNNLayerBase* OtherInputLayer = Layers[OtherInputLayerIdx].Get();
 
-			OptionalInputSRV = OtherInputLayer->GetOutputBufferSRV();
+			check(LayersToCacheOutput.Contains(OtherInputLayerIdx));
+
+			OptionalInputBuffer = CachedLookUpTable[OtherInputLayerIdx];
 		}
 
-		Layer->RunLayer_RenderThread(RHICmdList, InputSRV, OptionalInputSRV);
+		OutputBuffer = RunLayerImpl(RHICmdList, Idx, InputBuffer, OptionalInputBuffer, bShouldCacheOutput);
+
+		// Previous output buffer becomes new input buffer
+		InputBuffer = OutputBuffer;
 	}
 
 	FNNLayerBase* LastLayer = Layers[Layers.Num() - 1].Get();
 	FOutputLayer* OutputLayer = StaticCast<FOutputLayer*>(LastLayer);
-	OutputLayer->CopyToTargetTexture_RenderThread(RHICmdList, TargetTexture);
+	OutputLayer->RunLayer_RenderThread(RHICmdList, OutputTextureUAV, OutputBuffer->BufferSRV);
+	EnqueueAvailableBuffer(InputBuffer);
+
+	RHICmdList.CopyToResolveTarget(OutputTexture, TargetTexture, FResolveParams());
+}
+
+void FNNModel::ResetModel()
+{
+	ReleaseNNBuffers();
+	ReleaseOutputTexture();
+}
+
+const FNNBuffer* FNNModel::CreateNNBuffer(FNNBufferSize Size)
+{
+	if (!NNBufferLookUpTable.Contains(Size))
+	{
+		NNBufferLookUpTable.Add(Size, FNNBufferQueue());
+	}
+
+	FNNBuffer Buffer;
+	FRHIResourceCreateInfo CreateInfo;
+
+	Buffer.Size = Size;
+	Buffer.Buffer = RHICreateStructuredBuffer(
+		sizeof(float),                            // Stride
+		sizeof(float) * Size,                     // Size
+		BUF_UnorderedAccess | BUF_ShaderResource, // Usage
+		CreateInfo                                // Create info
+	);
+	Buffer.BufferSRV = RHICreateShaderResourceView(Buffer.Buffer);
+	Buffer.BufferUAV = RHICreateUnorderedAccessView(Buffer.Buffer, true, false);
+
+	FNNBufferQueue& Queue = NNBufferLookUpTable[Size];
+	NNBuffers.Add(AllocNNBuffer(Size));
+
+	return &NNBuffers[NNBuffers.Num() - 1];
+}
+
+void FNNModel::ReleaseNNBuffers()
+{
+	for (FNNBuffer Buffer : NNBuffers)
+	{
+		ReleaseNNBuffer(Buffer);
+	}
+
+	NNBuffers.Empty();
+	NNBufferLookUpTable.Empty();
+	LayersToCacheOutput.Empty();
+	CachedLookUpTable.Empty();
+}
+
+void FNNModel::CreateOutputTexture(FIntVector ImageDim)
+{
+	FRHIResourceCreateInfo CreateInfo;
+
+	OutputTexture = RHICreateTexture2D(ImageDim.X, ImageDim.Y, PF_FloatRGBA, 1, 1, TexCreate_UAV, CreateInfo);
+	OutputTextureUAV = RHICreateUnorderedAccessView(OutputTexture);
+}
+
+void FNNModel::ReleaseOutputTexture()
+{
+	ReleaseRenderResource<FTexture2DRHIRef>(OutputTexture);
+	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(OutputTextureUAV);
+}
+
+void FNNModel::EnqueueAvailableBuffer(const FNNBuffer* Buffer)
+{
+	check(Buffer);
+	check(NNBufferLookUpTable.Contains(Buffer->Size));
+
+	FNNBufferQueue& Queue = NNBufferLookUpTable[Buffer->Size];
+	Queue.Add(Buffer);
+}
+
+const FNNBuffer* FNNModel::DequeueAvailableBuffer(FNNBufferSize Size)
+{
+	const FNNBuffer* Buffer = nullptr;
+
+	if (NNBufferLookUpTable.Contains(Size))
+	{
+		FNNBufferQueue& Queue = NNBufferLookUpTable[Size];
+
+		// Dequeue the first buffer that doesn't have cached result
+		for (int32 Idx = 0; Idx < Queue.Num(); ++Idx)
+		{
+			bool IsCachedOutput = false;
+
+			for (auto It = CachedLookUpTable.CreateConstIterator(); It; ++It)
+			{
+				IsCachedOutput |= It->Value == Queue[Idx];
+			}
+
+			if (!IsCachedOutput)
+			{
+				Buffer = Queue[Idx];
+				Queue.RemoveAtSwap(Idx);
+				break;
+			}
+		}
+	}
+
+	// Create a buffer if not existed
+	if (!Buffer)
+	{
+		Buffer = CreateNNBuffer(Size);
+	}
+
+	return Buffer;
 }

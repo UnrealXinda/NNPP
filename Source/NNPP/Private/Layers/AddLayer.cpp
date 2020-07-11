@@ -71,36 +71,11 @@ FAddLayer::~FAddLayer()
 
 }
 
-void FAddLayer::SetupLayer(FIntVector InInputDim)
-{
-	FNNLayerBase::SetupLayer(InInputDim);
-
-	OutputDim = InInputDim;
-
-	// Release all output buffer resources
-	FNNLayerBase::ReleaseRenderResources();
-
-	FRHIResourceCreateInfo CreateInfo;
-
-	OutputBuffer = RHICreateStructuredBuffer(
-		sizeof(float),                                             // Stride
-		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
-		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
-		CreateInfo                                                 // Create info
-	);
-	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
-	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
-}
-
-void FAddLayer::ReleaseRenderResources()
-{
-	FNNLayerBase::ReleaseRenderResources();
-}
-
 void FAddLayer::RunLayer_RenderThread(
-	FRHICommandList&          RHICmdList,
-	FShaderResourceViewRHIRef InputBufferSRV,
-	FShaderResourceViewRHIRef OptionalInputBufferSRV /*= nullptr*/)
+	FRHICommandList&           RHICmdList,
+	FUnorderedAccessViewRHIRef OutputBufferUAV,
+	FShaderResourceViewRHIRef  InputBufferSRV,
+	FShaderResourceViewRHIRef  OptionalInputBufferSRV /*= nullptr*/)
 {
 	check(IsInRenderingThread());
 

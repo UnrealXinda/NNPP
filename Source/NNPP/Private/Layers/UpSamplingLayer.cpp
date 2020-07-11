@@ -70,33 +70,15 @@ void FUpSamplingLayer::SetupLayer(FIntVector InInputDim)
 	FNNLayerBase::SetupLayer(InInputDim);
 
 	OutputDim = FIntVector(InInputDim.X * Size.X, InInputDim.Y * Size.Y, InInputDim.Z);
-
-	// Release all output buffer resources
-	FNNLayerBase::ReleaseRenderResources();
-
-	FRHIResourceCreateInfo CreateInfo;
-
-	OutputBuffer = RHICreateStructuredBuffer(
-		sizeof(float),                                             // Stride
-		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
-		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
-		CreateInfo                                                 // Create info
-	);
-	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
-	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
-}
-
-void FUpSamplingLayer::ReleaseRenderResources()
-{
-	FNNLayerBase::ReleaseRenderResources();
 }
 
 void FUpSamplingLayer::RunLayer_RenderThread(
-	FRHICommandList&          RHICmdList,
-	FShaderResourceViewRHIRef InputBufferSRV,
-	FShaderResourceViewRHIRef OptionalInputBufferSRV /*= nullptr*/)
+	FRHICommandList&           RHICmdList,
+	FUnorderedAccessViewRHIRef OutputBufferUAV,
+	FShaderResourceViewRHIRef  InputBufferSRV,
+	FShaderResourceViewRHIRef  OptionalInputBufferSRV /*= nullptr*/)
 {
-check(IsInRenderingThread());
+	check(IsInRenderingThread());
 
 	// Bind shader textures
 	TShaderMapRef<FUpSamplingLayerComputeShader> UpSamplingLayerCS(GetGlobalShaderMap(ERHIFeatureLevel::SM5));

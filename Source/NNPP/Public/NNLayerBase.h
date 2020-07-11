@@ -30,16 +30,11 @@ public:
 	FNNLayerBase& operator=(const FNNLayerBase&) = delete;
 
 	virtual void SetupLayer(FIntVector InInputDim);
-	virtual void ReleaseRenderResources();
 	virtual void RunLayer_RenderThread(
-		FRHICommandList&          RHICmdList,
-		FShaderResourceViewRHIRef InputBufferSRV,
-		FShaderResourceViewRHIRef OptionalInputBufferSRV = nullptr) = 0;
-
-	FORCEINLINE FShaderResourceViewRHIRef GetOutputBufferSRV() const
-	{
-		return OutputBufferSRV;
-	}
+		FRHICommandList&           RHICmdList,
+		FUnorderedAccessViewRHIRef OutputBufferUAV,
+		FShaderResourceViewRHIRef  InputBufferSRV,
+		FShaderResourceViewRHIRef  OptionalInputBufferSRV = nullptr) = 0;
 
 	FORCEINLINE void SetName(FName InName)
 	{
@@ -70,10 +65,7 @@ protected:
 
 	FName                      Name;
 	const ENNLayerType         LayerType;
+
 	FIntVector                 InputDim;
 	FIntVector                 OutputDim;
-
-	FStructuredBufferRHIRef    OutputBuffer;
-	FShaderResourceViewRHIRef  OutputBufferSRV;
-	FUnorderedAccessViewRHIRef OutputBufferUAV;
 };

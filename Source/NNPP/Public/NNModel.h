@@ -5,6 +5,20 @@
 #include "CoreMinimal.h"
 #include "NNLayerBase.h"
 
+using FNNBufferSize = int32;
+using FNNLayerIndex = int32;
+using FNNBufferQueue = TArray<const struct FNNBuffer*>;
+using FNNBufferLookUpTable = TMap<FNNBufferSize, FNNBufferQueue>;
+using FNNCachedLookUpTable = TMap<FNNLayerIndex, const struct FNNBuffer*>;
+
+struct FNNBuffer
+{
+	FNNBufferSize              Size;
+	FStructuredBufferRHIRef    Buffer;
+	FShaderResourceViewRHIRef  BufferSRV;
+	FUnorderedAccessViewRHIRef BufferUAV;
+};
+
 class FNNModel
 {
 public:
@@ -20,6 +34,14 @@ protected:
 
 	FIntPoint CachedImageDim;
 
+	TArray<FNNBuffer>    NNBuffers;
+	TSet<FNNLayerIndex>  LayersToCacheOutput;
+	FNNCachedLookUpTable CachedLookUpTable;
+	FNNBufferLookUpTable NNBufferLookUpTable;
+
+	FTexture2DRHIRef           OutputTexture;
+	FUnorderedAccessViewRHIRef OutputTextureUAV;
+
 protected:
 
 	void SetupLayers(FIntPoint ImageDim);
@@ -27,4 +49,15 @@ protected:
 		FRHICommandListImmediate& RHICmdList,
 		FRHITexture*              TargetTexture,
 		FShaderResourceViewRHIRef SrcSRV);
+
+	void ResetModel();
+
+	const FNNBuffer* CreateNNBuffer(FNNBufferSize Size);
+	void ReleaseNNBuffers();
+
+	void CreateOutputTexture(FIntVector ImageDim);
+	void ReleaseOutputTexture();
+
+	void EnqueueAvailableBuffer(const FNNBuffer* Buffer);
+	const FNNBuffer* DequeueAvailableBuffer(FNNBufferSize Size);
 };

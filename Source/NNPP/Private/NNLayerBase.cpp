@@ -10,17 +10,10 @@ FNNLayerBase::FNNLayerBase(ENNLayerType InType) :
 
 FNNLayerBase::~FNNLayerBase()
 {
-	ReleaseRenderResources();
 }
 
 void FNNLayerBase::SetupLayer(FIntVector InInputDim)
 {
 	InputDim = InInputDim;
-}
-
-void FNNLayerBase::ReleaseRenderResources()
-{
-	ReleaseRenderResource<FStructuredBufferRHIRef>(OutputBuffer);
-	ReleaseRenderResource<FShaderResourceViewRHIRef>(OutputBufferSRV);
-	ReleaseRenderResource<FUnorderedAccessViewRHIRef>(OutputBufferUAV);
+	OutputDim = InInputDim;
 }

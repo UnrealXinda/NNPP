@@ -110,7 +110,7 @@ FConvLayer::FConvLayer() :
 
 FConvLayer::~FConvLayer()
 {
-
+	ReleaseWeightBuffers();
 }
 
 void FConvLayer::SetupLayer(FIntVector InInputDim)
@@ -119,59 +119,40 @@ void FConvLayer::SetupLayer(FIntVector InInputDim)
 
 	OutputDim = FIntVector(InputDim.X / Stride.X, InputDim.Y / Stride.Y, Filters);
 
-	// Release all output buffer resources
-	FNNLayerBase::ReleaseRenderResources();
-
-	FRHIResourceCreateInfo CreateInfo;
-
-	OutputBuffer = RHICreateStructuredBuffer(
-		sizeof(float),                                             // Stride
-		sizeof(float) * OutputDim.X * OutputDim.Y * OutputDim.Z,   // Size
-		BUF_UnorderedAccess | BUF_ShaderResource,                  // Usage
-		CreateInfo                                                 // Create info
-	);
-	OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, true, false);
-	OutputBufferSRV = RHICreateShaderResourceView(OutputBuffer);
-
 	ConvChannels = GetSupportedConvChannel(FMath::Max(InputDim.Z, Filters));
 }
 
-void FConvLayer::ReleaseRenderResources()
-{
-	FNNLayerBase::ReleaseRenderResources();	
-	ReleaseWeightBuffers();
-}
-
 void FConvLayer::RunLayer_RenderThread(
-	FRHICommandList&          RHICmdList,
-	FShaderResourceViewRHIRef InputBufferSRV,
-	FShaderResourceViewRHIRef OptionalInputBufferSRV /*= nullptr*/)
+	FRHICommandList&           RHICmdList,
+	FUnorderedAccessViewRHIRef OutputBufferUAV,
+	FShaderResourceViewRHIRef  InputBufferSRV,
+	FShaderResourceViewRHIRef  OptionalInputBufferSRV /*= nullptr*/)
 {
 	switch (ConvChannels)
 	{
 	case 8:
-		DispatchConvShader_RenderThread<FConvLayer8ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer8ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 12:
-		DispatchConvShader_RenderThread<FConvLayer12ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer12ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 16:
-		DispatchConvShader_RenderThread<FConvLayer16ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer16ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 20:
-		DispatchConvShader_RenderThread<FConvLayer20ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer20ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 32:
-		DispatchConvShader_RenderThread<FConvLayer32ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer32ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 64:
-		DispatchConvShader_RenderThread<FConvLayer64ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer64ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 128:
-		DispatchConvShader_RenderThread<FConvLayer128ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer128ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	case 256:
-		DispatchConvShader_RenderThread<FConvLayer256ComputeShader>(RHICmdList, InputBufferSRV);
+		DispatchConvShader_RenderThread<FConvLayer256ComputeShader>(RHICmdList, OutputBufferUAV, InputBufferSRV);
 		break;
 	}	
 
@@ -184,7 +165,10 @@ void FConvLayer::RunLayer_RenderThread(
 }
 
 template <class ShaderClass>
-void FConvLayer::DispatchConvShader_RenderThread(FRHICommandList& RHICmdList, FShaderResourceViewRHIRef InputBufferSRV)
+void FConvLayer::DispatchConvShader_RenderThread(
+	FRHICommandList&           RHICmdList,
+	FUnorderedAccessViewRHIRef OutputBufferUAV,
+	FShaderResourceViewRHIRef  InputBufferSRV)
 {
 	TShaderMapRef<ShaderClass> ConvLayerCS(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
 	RHICmdList.SetComputeShader(ConvLayerCS.GetComputeShader());

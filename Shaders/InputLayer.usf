@@ -9,7 +9,7 @@ void InputLayer(uint3 ThreadId : SV_DispatchThreadID)
 	const uint3 InputDim          = InputLayerUniform.InputDim;
 	const uint3 InputDimIndexMult = InputLayerUniform.InputDimIndexMult;
 	
-	//if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
+	if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
 	{
 		uint2 RemappedId = uint2(ThreadId.y, InputDim.x - 1 - ThreadId.x);
 		float4 Color = InputTexture[RemappedId.xy] * 2.0f - 1.0f;
