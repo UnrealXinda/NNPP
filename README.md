@@ -12,8 +12,6 @@ References:
 ![La Muse](Samples/la_muse.png)
 ### Mirror
 ![Mirror](Samples/mirror.png)
-### Starry Night
-![Starry Night](Samples/starry_night.png)
 ### Sketch
 ![Sketch](Samples/sketch.png)
 ### Udnie
