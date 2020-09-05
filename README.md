@@ -1,6 +1,10 @@
 # NNPP
 A UE4 Plugin of Neural Network Style Transfer for Post Processing
 
+References:
+1. https://github.com/maajor/NeuralNetworkPostProcessing
+2. https://github.com/misgod/fast-neural-style-keras
+
 ## Sample Image
 ### Starry Night
 ![Starry Night](Samples/starry_night.png)
