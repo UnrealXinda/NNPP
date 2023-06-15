@@ -1,28 +1,50 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNPP.h"
+
+#include "ISettingsModule.h"
+#include "NNPPSettings.h"
+#include "NNPPViewExtension.h"
 #include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "FNNPPModule"
 
 void FNNPPModule::StartupModule()
 {
-	FString PluginShaderDir = FPaths::Combine(GetPluginDirectory(), TEXT("Shaders"));
-	AddShaderSourceDirectoryMapping(TEXT("/Plugin/NNPP"), PluginShaderDir);
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	[[maybe_unused]] FNNPPViewExtension& ViewExtension = FNNPPViewExtension::Get();
+
+	UNNPPSettings* Settings = GetMutableDefault<UNNPPSettings>();
+	Settings->OnNnppModelChanged.BindStatic(HandleOnNNPPModelChanged);
+
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings(
+			"Project",
+			"Plugins",
+			"NNPP_Settings",
+			LOCTEXT("RuntimeSettingsName", "NNPP Settings"),
+			LOCTEXT("RuntimeSettingsDescription", "Configure NNPP setting"),
+			GetMutableDefault<UNNPPSettings>());
+	}
 }
 
 void FNNPPModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings(
+			"Project",
+			"Plugins",
+			"NNPP_Settings");
+	}
 }
 
-FString FNNPPModule::GetPluginDirectory()
+void FNNPPModule::HandleOnNNPPModelChanged()
 {
-	return IPluginManager::Get().FindPlugin(TEXT("NNPP"))->GetBaseDir();
+	FNNPPViewExtension& ViewExtension = FNNPPViewExtension::Get();
+	ViewExtension.InitializeModel();
 }
 
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FNNPPModule, NNPP)

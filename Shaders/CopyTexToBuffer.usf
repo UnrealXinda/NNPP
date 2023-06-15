@@ -1,0 +1,21 @@
+#include "/Engine/Private/Common.ush"
+
+Texture2D<float4> InputTexture;
+RWStructuredBuffer<float> OutputBuffer;
+uint3 InputDim;
+
+[numthreads(32, 32, 1)]
+void Main(uint3 ThreadId : SV_DispatchThreadID)
+{
+	if (ThreadId.x < InputDim.x && ThreadId.y < InputDim.y)
+	{
+		const int ImageSize = InputDim.x * InputDim.y;
+		const uint3 InputDimIndexMult = uint3(InputDim.x, 1, ImageSize);
+
+		float4 Color = saturate(InputTexture[ThreadId.xy]) * 255.0f;
+
+		OutputBuffer[dot(uint3(ThreadId.y, ThreadId.x, 0), InputDimIndexMult)] = Color.r;
+		OutputBuffer[dot(uint3(ThreadId.y, ThreadId.x, 1), InputDimIndexMult)] = Color.g;
+		OutputBuffer[dot(uint3(ThreadId.y, ThreadId.x, 2), InputDimIndexMult)] = Color.b;
+	}
+}

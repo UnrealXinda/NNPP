@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "NNPP",
-	"Description": "Neural Network Style Transfer for Post Processing",
+	"Description": "",
 	"Category": "Other",
 	"CreatedBy": "UnrealXinda",
 	"CreatedByURL": "",
@@ -18,7 +18,18 @@
 		{
 			"Name": "NNPP",
 			"Type": "Runtime",
+			"LoadingPhase": "PostEngineInit"
+		},
+		{
+			"Name": "NNPPShaders",
+			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "NNE",
+			"Enabled": true
 		}
 	]
 }
