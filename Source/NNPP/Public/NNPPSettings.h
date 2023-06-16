@@ -15,7 +15,7 @@ class UNNPPSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:
 	UPROPERTY(EditDefaultsOnly, Config)
@@ -24,5 +24,5 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, meta=(AllowedClasses="NNEModelData"))
 	FSoftObjectPath NNPPModelPath;
 
-	FOnNNPPModelChanged OnNnppModelChanged;
+	FOnNNPPModelChanged OnModelChanged;
 };

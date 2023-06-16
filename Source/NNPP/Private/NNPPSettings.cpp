@@ -9,6 +9,6 @@ void UNNPPSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UNNPPSettings, NNPPModelPath))
 	{
-		OnNnppModelChanged.ExecuteIfBound();
+		OnModelChanged.ExecuteIfBound();
 	}
 }

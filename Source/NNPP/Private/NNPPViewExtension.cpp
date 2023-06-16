@@ -106,7 +106,6 @@ FScreenPassTexture FNNPPViewExtension::PostProcessPassAfterTonemap_RenderThread(
 	// Step 1: Downscale scene color
 	FScreenPassTexture SceneColor = Inputs.GetInput(EPostProcessMaterialInput::SceneColor);
 	check(SceneColor.IsValid());
-	const FRDGTextureRef SceneColorRDG = SceneColor.Texture;
 
 	const FRDGTextureDesc DownscaledTexDesc = FRDGTextureDesc::Create2D(
 		TextureSize,
@@ -118,7 +117,7 @@ FScreenPassTexture FNNPPViewExtension::PostProcessPassAfterTonemap_RenderThread(
 	FRDGTextureUAVRef DownscaledSceneColorUAV = GraphBuilder.CreateUAV(DownscaledSceneColor);
 
 	{
-		const FScreenPassTextureViewport InputViewport{SceneColorRDG};
+		const FScreenPassTextureViewport InputViewport{ViewInfo.ViewRect};
 		const FScreenPassTextureViewport OutputViewport{DownscaledSceneColor};
 
 		FCopyTexturePS::FParameters* CopyTextureParam = GraphBuilder.AllocParameters<FCopyTexturePS::FParameters>();

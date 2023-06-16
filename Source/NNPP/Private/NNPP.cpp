@@ -14,7 +14,7 @@ void FNNPPModule::StartupModule()
 	[[maybe_unused]] FNNPPViewExtension& ViewExtension = FNNPPViewExtension::Get();
 
 	UNNPPSettings* Settings = GetMutableDefault<UNNPPSettings>();
-	Settings->OnNnppModelChanged.BindStatic(HandleOnNNPPModelChanged);
+	Settings->OnModelChanged.BindStatic(HandleOnNNPPModelChanged);
 
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
